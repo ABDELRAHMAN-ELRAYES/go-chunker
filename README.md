@@ -1,25 +1,33 @@
 # chunker
 
+<div align="center">
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/ABDELRAHMAN-ELRAYES/go-chunker.svg)](https://pkg.go.dev/github.com/ABDELRAHMAN-ELRAYES/go-chunker)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ABDELRAHMAN-ELRAYES/go-chunker)](https://goreportcard.com/report/github.com/ABDELRAHMAN-ELRAYES/go-chunker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+
+</div>
 **chunker** splits documents into overlapping chunks ready for embedding and
 vector-database ingestion. It is the text-preparation layer for RAG
 (Retrieval-Augmented Generation) pipelines written in Go.
+
+It employs a LangChain-style recursive fallback strategy, traversing an ordered
+list of semantic separators to accurately split code, prose, and markdown
+without exceeding token or character budget limits.
 
 ---
 
 ## Features
 
-- **Three splitting strategies** — sentence boundaries, paragraph boundaries,
-  and Markdown headings
-- **Overlap-aware** — configurable overlap carries context across chunk boundaries
-- **Minimum size enforcement** — tiny trailing chunks are merged rather than emitted
-- **Context-aware** — all calls respect `context.Context` for cancellation
-- **Concurrent-safe** — all strategies are safe to use from multiple goroutines
-- **Zero dependencies** — pure standard library, no third-party imports
-- **Production benchmarked** — tested on corpora up to 100 k words
+- **Recursive splitting** — uses an ordered priority of separators, gracefully regressing if limits are exceeded.
+- **Three preset strategies** — sentence, paragraph, and Markdown headings.
+- **Pluggable LenFunc** — swap between rune counting and token counting (`tiktoken`) easily!
+- **Byte accuracy** — strictly tracks exact original byte offsets `StartChar` and `EndChar`.
+- **Overlap-aware** — configurable overlap carries context across chunk boundaries.
+- **Minimum size enforcement** — tiny trailing chunks are merged rather than emitted.
+- **Context-aware** — all calls respect `context.Context` for cancellation.
+- **Zero dependencies** — pure standard library, no third-party imports.
 
 ---
 
@@ -73,7 +81,7 @@ func main() {
 	}
 
 	// 2. Initialize a strategy
-	splitter := chunker.NewSentence(
+	splitter := chunker.NewSplitter(
 		chunker.WithSize(500),// target ~500 runes per chunk
 		chunker.WithOverlap(100), // carry 100 runes into the next  chunk
 	)
@@ -105,10 +113,25 @@ func main() {
 
 ## Strategies
 
+Instead of rigid single-pass boundary parsers, all constructors yield a `RecursiveTextSplitter` pre-configured with a list of language-appropriate separators. The algorithm attempts to split at the largest logical boundary first (e.g. `\n\n`), falling back to smaller separators (`\n`, `. `, ` `) if the resulting chunk still exceeds your size target.
+
+### Recursive Default — `chunker.NewSplitter`
+
+Provide custom semantic separators perfectly tailored to your document structure.
+
+```go
+s := chunker.NewSplitter(
+    chunker.WithSeparators([]string{"\n\n", "\n", " ", ""}),
+    chunker.WithSize(500),
+    chunker.WithOverlap(100),
+)
+```
+
+---
+
 ### Sentence — `chunker.NewSentence`
 
-Splits at sentence-ending punctuation (`.` `!` `?` `…`) while skipping
-common abbreviations (`Dr.` `Mr.` `etc.` and more).
+Splits defaulting to sentence-separating punctuation (`. `, `! `, `? `).
 
 **Best for:** prose articles, research papers, reports, transcripts.
 
@@ -123,8 +146,7 @@ s := chunker.NewSentence(
 
 ### Paragraph — `chunker.NewParagraph`
 
-Splits at blank lines. Each block of non-empty lines is treated as one
-unit before chunks are assembled.
+Splits prioritizing blank lines.
 
 **Best for:** emails, chat exports, legal documents, plaintext articles.
 
@@ -139,10 +161,7 @@ s := chunker.NewParagraph(
 
 ### Markdown — `chunker.NewMarkdown`
 
-Splits at ATX headings (`#` through `######`). The heading text is
-embedded at the top of each chunk so every chunk is self-contained.
-Content inside fenced code blocks (` ``` ` or `~~~`) is never split.
-Sections that exceed `Size` are subdivided using the paragraph strategy.
+Splits using ATX headings (`\n# `, `\n## `, etc.) and structural Markdown constructs.
 
 **Best for:** documentation, wikis, READMEs, knowledge bases.
 
@@ -161,9 +180,11 @@ All three strategies accept the same functional options:
 
 | Option                | Default | Description                                           |
 | --------------------- | ------- | ----------------------------------------------------- |
-| `WithSize(n)`         | `500`   | Target chunk size in **runes** (not bytes)            |
-| `WithOverlap(n)`      | `100`   | Runes carried forward into the next chunk             |
+| `WithSize(n)`         | `500`   | Target chunk size budget                              |
+| `WithOverlap(n)`      | `100`   | Budget carried forward into the next chunk            |
 | `WithMinSize(n)`      | `50`    | Chunks smaller than this are merged with the previous |
+| `WithSeparators(arr)` | `[...]` | Ordered slice of `string` boundaries                  |
+| `WithLenFunc(func)`   | `Runes` | Used to calculate chunk size (token-aware injection)  |
 | `WithTrimSpace(bool)` | `true`  | Strip leading/trailing whitespace from each chunk     |
 
 > **Note:** `overlap` must be strictly less than `size`. Both functions

@@ -1,4 +1,4 @@
-package strategy_test
+package chunker_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 
 	types "github.com/ABDELRAHMAN-ELRAYES/go-chunker/internal/types"
-	"github.com/ABDELRAHMAN-ELRAYES/go-chunker/internal/strategy"
+	"github.com/ABDELRAHMAN-ELRAYES/go-chunker"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ func assertChunks(t *testing.T, chunks []types.Chunk, opts types.Options) {
 // ── Sentence tests ────────────────────────────────────────────────────────────
 
 func TestSentence_BasicSplit(t *testing.T) {
-	s := strategy.NewSentence(
+	s := chunker.NewSentence(
 		types.WithSize(100),
 		types.WithOverlap(20),
 		types.WithMinSize(10),
@@ -66,7 +66,7 @@ func TestSentence_BasicSplit(t *testing.T) {
 }
 
 func TestSentence_EmptyInput(t *testing.T) {
-	s := strategy.NewSentence()
+	s := chunker.NewSentence()
 	chunks, err := s.Split(context.Background(), "", meta())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -77,7 +77,7 @@ func TestSentence_EmptyInput(t *testing.T) {
 }
 
 func TestSentence_WhitespaceOnly(t *testing.T) {
-	s := strategy.NewSentence()
+	s := chunker.NewSentence()
 	chunks, err := s.Split(context.Background(), "   \n\t  ", meta())
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestSentence_WhitespaceOnly(t *testing.T) {
 }
 
 func TestSentence_AbbreviationsNotSplit(t *testing.T) {
-	s := strategy.NewSentence(types.WithSize(500))
+	s := chunker.NewSentence(types.WithSize(500))
 	// "Dr." should not cause a split
 	text := "Dr. Smith went to Washington. He met Prof. Jones there."
 	chunks, err := s.Split(context.Background(), text, meta())
@@ -102,7 +102,7 @@ func TestSentence_AbbreviationsNotSplit(t *testing.T) {
 }
 
 func TestSentence_SingleSentenceLargerThanSize(t *testing.T) {
-	s := strategy.NewSentence(
+	s := chunker.NewSentence(
 		types.WithSize(20),
 		types.WithOverlap(5),
 		types.WithMinSize(1),
@@ -119,7 +119,7 @@ func TestSentence_SingleSentenceLargerThanSize(t *testing.T) {
 }
 
 func TestSentence_ContextCancellation(t *testing.T) {
-	s := strategy.NewSentence()
+	s := chunker.NewSentence()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
@@ -130,7 +130,7 @@ func TestSentence_ContextCancellation(t *testing.T) {
 }
 
 func TestSentence_OverlapCarriedForward(t *testing.T) {
-	s := strategy.NewSentence(
+	s := chunker.NewSentence(
 		types.WithSize(80),
 		types.WithOverlap(30),
 		types.WithMinSize(5),
@@ -157,7 +157,7 @@ func TestSentence_OverlapCarriedForward(t *testing.T) {
 }
 
 func TestSentence_Config(t *testing.T) {
-	s := strategy.NewSentence(types.WithSize(300), types.WithOverlap(60))
+	s := chunker.NewSentence(types.WithSize(300), types.WithOverlap(60))
 	cfg := s.Config()
 	if cfg.Size != 300 {
 		t.Errorf("Config().Size = %d, want 300", cfg.Size)
@@ -170,7 +170,7 @@ func TestSentence_Config(t *testing.T) {
 // ── Paragraph tests ───────────────────────────────────────────────────────────
 
 func TestParagraph_BasicSplit(t *testing.T) {
-	s := strategy.NewParagraph(
+	s := chunker.NewParagraph(
 		types.WithSize(100),
 		types.WithOverlap(20),
 		types.WithMinSize(5),
@@ -190,7 +190,7 @@ func TestParagraph_BasicSplit(t *testing.T) {
 }
 
 func TestParagraph_EmptyInput(t *testing.T) {
-	s := strategy.NewParagraph()
+	s := chunker.NewParagraph()
 	chunks, err := s.Split(context.Background(), "", meta())
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestParagraph_EmptyInput(t *testing.T) {
 }
 
 func TestParagraph_SingleParagraph(t *testing.T) {
-	s := strategy.NewParagraph()
+	s := chunker.NewParagraph()
 	text := "Just one paragraph with no blank lines anywhere in it at all."
 	chunks, err := s.Split(context.Background(), text, meta())
 	if err != nil {
@@ -213,7 +213,7 @@ func TestParagraph_SingleParagraph(t *testing.T) {
 }
 
 func TestParagraph_MultipleBlankLines(t *testing.T) {
-	s := strategy.NewParagraph()
+	s := chunker.NewParagraph()
 	// Multiple consecutive blank lines should be treated as one paragraph break
 	text := "First paragraph.\n\n\n\nSecond paragraph."
 	chunks, err := s.Split(context.Background(), text, meta())
@@ -226,7 +226,7 @@ func TestParagraph_MultipleBlankLines(t *testing.T) {
 }
 
 func TestParagraph_WindowsLineEndings(t *testing.T) {
-	s := strategy.NewParagraph()
+	s := chunker.NewParagraph()
 	text := "First paragraph.\r\n\r\nSecond paragraph."
 	chunks, err := s.Split(context.Background(), text, meta())
 	if err != nil {
@@ -238,7 +238,7 @@ func TestParagraph_WindowsLineEndings(t *testing.T) {
 }
 
 func TestParagraph_MetaForwarded(t *testing.T) {
-	s := strategy.NewParagraph()
+	s := chunker.NewParagraph()
 	m := types.Meta{
 		DocumentID: "my-doc",
 		Source:     "file.txt",
@@ -261,7 +261,7 @@ func TestParagraph_MetaForwarded(t *testing.T) {
 // ── Markdown tests ────────────────────────────────────────────────────────────
 
 func TestMarkdown_BasicSplit(t *testing.T) {
-	s := strategy.NewMarkdown(
+	s := chunker.NewMarkdown(
 		types.WithSize(200),
 		types.WithOverlap(30),
 		types.WithMinSize(10),
@@ -293,7 +293,7 @@ Final thoughts and conclusions go here.`
 }
 
 func TestMarkdown_HeadingPreservedInChunk(t *testing.T) {
-	s := strategy.NewMarkdown(types.WithSize(500))
+	s := chunker.NewMarkdown(types.WithSize(500))
 	text := "## My Section\n\nSome content under this section."
 	chunks, err := s.Split(context.Background(), text, meta())
 	if err != nil {
@@ -309,7 +309,7 @@ func TestMarkdown_HeadingPreservedInChunk(t *testing.T) {
 }
 
 func TestMarkdown_CodeFenceNotSplit(t *testing.T) {
-	s := strategy.NewMarkdown(types.WithSize(500))
+	s := chunker.NewMarkdown(types.WithSize(500))
 	text := "## Example\n\n```go\n// This is code\nfunc main() {}\n```\n\nText after."
 	chunks, err := s.Split(context.Background(), text, meta())
 	if err != nil {
@@ -325,7 +325,7 @@ func TestMarkdown_CodeFenceNotSplit(t *testing.T) {
 }
 
 func TestMarkdown_EmptyInput(t *testing.T) {
-	s := strategy.NewMarkdown()
+	s := chunker.NewMarkdown()
 	chunks, err := s.Split(context.Background(), "", meta())
 	if err != nil {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func TestMarkdown_EmptyInput(t *testing.T) {
 }
 
 func TestMarkdown_NoHeadings(t *testing.T) {
-	s := strategy.NewMarkdown(types.WithSize(100))
+	s := chunker.NewMarkdown(types.WithSize(100))
 	// Plain text with no headings should still be chunked
 	text := strings.Repeat("This is a plain paragraph without any heading markers. ", 10)
 	chunks, err := s.Split(context.Background(), text, meta())
@@ -349,7 +349,7 @@ func TestMarkdown_NoHeadings(t *testing.T) {
 }
 
 func TestMarkdown_LargeSectionSubdivided(t *testing.T) {
-	s := strategy.NewMarkdown(
+	s := chunker.NewMarkdown(
 		types.WithSize(100),
 		types.WithOverlap(20),
 		types.WithMinSize(10),
@@ -375,7 +375,7 @@ func TestOptions_PanicOnOverlapGteSize(t *testing.T) {
 		}
 	}()
 	// Explicitly set overlap equal to size — must panic.
-	strategy.NewSentence(types.WithSize(100), types.WithOverlap(100))
+	chunker.NewSentence(types.WithSize(100), types.WithOverlap(100))
 }
 
 func TestOptions_AutoClampOverlapWhenOnlySizeSet(t *testing.T) {
@@ -385,7 +385,7 @@ func TestOptions_AutoClampOverlapWhenOnlySizeSet(t *testing.T) {
 			t.Errorf("unexpected panic: %v", r)
 		}
 	}()
-	s := strategy.NewSentence(types.WithSize(80))
+	s := chunker.NewSentence(types.WithSize(80))
 	cfg := s.Config()
 	if cfg.Overlap >= cfg.Size {
 		t.Errorf("auto-clamped overlap %d must be < size %d", cfg.Overlap, cfg.Size)

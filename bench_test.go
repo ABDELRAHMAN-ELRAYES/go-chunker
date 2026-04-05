@@ -1,4 +1,4 @@
-package strategy_test
+package chunker_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	types "github.com/ABDELRAHMAN-ELRAYES/go-chunker/internal/types"
-	"github.com/ABDELRAHMAN-ELRAYES/go-chunker/internal/strategy"
+	"github.com/ABDELRAHMAN-ELRAYES/go-chunker"
 )
 
 // corpus generates a realistic text corpus of approximately n words.
@@ -46,7 +46,7 @@ func BenchmarkSentence_100k(b *testing.B) { benchmarkSentence(b, 100_000) }
 func benchmarkSentence(b *testing.B, words int) {
 	b.Helper()
 	text := corpus(words)
-	s := strategy.NewSentence(
+	s := chunker.NewSentence(
 		types.WithSize(500),
 		types.WithOverlap(100),
 	)
@@ -68,7 +68,7 @@ func BenchmarkParagraph_100k(b *testing.B) { benchmarkParagraph(b, 100_000) }
 func benchmarkParagraph(b *testing.B, words int) {
 	b.Helper()
 	text := corpus(words)
-	s := strategy.NewParagraph(
+	s := chunker.NewParagraph(
 		types.WithSize(500),
 		types.WithOverlap(100),
 	)
@@ -90,7 +90,7 @@ func BenchmarkMarkdown_200sections(b *testing.B) { benchmarkMarkdown(b, 200) }
 func benchmarkMarkdown(b *testing.B, sections int) {
 	b.Helper()
 	text := markdownCorpus(sections)
-	s := strategy.NewMarkdown(
+	s := chunker.NewMarkdown(
 		types.WithSize(800),
 		types.WithOverlap(80),
 	)
@@ -107,7 +107,7 @@ func benchmarkMarkdown(b *testing.B, sections int) {
 
 func BenchmarkSentence_Allocs(b *testing.B) {
 	text := corpus(5_000)
-	s := strategy.NewSentence()
+	s := chunker.NewSentence()
 	ctx := context.Background()
 	m := types.Meta{DocumentID: "bench"}
 	b.ReportAllocs()
@@ -119,7 +119,7 @@ func BenchmarkSentence_Allocs(b *testing.B) {
 
 func BenchmarkMarkdown_Allocs(b *testing.B) {
 	text := markdownCorpus(30)
-	s := strategy.NewMarkdown()
+	s := chunker.NewMarkdown()
 	ctx := context.Background()
 	m := types.Meta{DocumentID: "bench"}
 	b.ReportAllocs()
